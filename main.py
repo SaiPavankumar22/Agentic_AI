@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.baidusearch import BaiduSearchTools
 from agno.tools.yfinance import YFinanceTools
 from agno.tools.arxiv import ArxivTools
 from agno.tools.hackernews import HackerNewsTools
@@ -36,8 +36,10 @@ web_agent = Agent(
     name="Web Agent",
     role="Search the web for information",
     model=OpenAIChat(id="gpt-4o-mini"),
-    tools=[DuckDuckGoTools()],
-    instructions="Always include sources",
+    tools=[BaiduSearchTools()],
+    instructions=["Given a topic by the user, respond with the 3 most relevant search results about that topic.",
+        "Search for 5 results and select the top 3 unique items.",
+        "Always include sources"],
     markdown=True,
 )
 
@@ -46,7 +48,7 @@ finance_agent = Agent(
     role="Get financial data",
     model=OpenAIChat(id="gpt-4o-mini"),
     tools=[YFinanceTools(stock_price=True, analyst_recommendations=True, company_info=True)],
-    instructions="Use tables to display data",
+    instructions="include the information sources",
     markdown=True,
 )
 
