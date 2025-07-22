@@ -19,7 +19,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# Allow CORS for frontend
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,10 +28,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve static files (frontend)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Agent setup (copied from app.py)
+
 web_agent = Agent(
     name="Web Agent",
     role="Search the web for information",
@@ -93,6 +93,14 @@ web_agent2 = Agent(
     show_tool_calls=True,
 )
 
+refiner_agent = Agent(
+    name="Refiner Agent",
+    role="Refine and consolidate multi-agent outputs into a single clear response. Remove redundant or overlapping content. Maintain factual accuracy and clarity. Format the output using markdown.",
+    model=OpenAIChat(id="gpt-4o-mini"),
+    markdown=True,
+)
+
+
 agent_team = Agent(
     team=[web_agent, finance_agent, scientific_agent, hacker_news_agent, med_agent, wiki_agent, wiki_agent, web_agent2],
     model=OpenAIChat(id="gpt-4o-mini"),
@@ -106,12 +114,23 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     try:
-        result = agent_team.run(request.message)
-        # If result is an object with 'content', return that, else return as string
-        response = getattr(result, 'content', result)
+
+        raw_team_result = agent_team.run(request.message)
+        raw_text = getattr(raw_team_result, 'content', str(raw_team_result))
+
+        refinement_prompt = f"""You are given results from multiple expert agents. 
+        Your job is to merge overlapping content, remove duplication, and create a well-organized response.
+        Make sure to include important points from each section and format the final output neatly.
+
+        Here are the agent outputs:
+        {raw_text}
+        """
+        final_result = refiner_agent.run(refinement_prompt)
+        response = getattr(final_result, 'content', final_result)
         return {"response": response}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @app.get("/")
 async def root():
